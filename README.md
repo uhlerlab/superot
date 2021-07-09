@@ -4,3 +4,10 @@ This is the code repository for the paper https://arxiv.org/pdf/2007.12098.pdf. 
 
 Here is a description of each of the files: 
 
+1. `GAN.py` --> GAN model code 
+2. `cGAN.py` --> Conditional GAN model code
+3. `data_preprocess.py` --> Code for setting up the data loaders in the unsupervised, semi-supervised, and supervised settings. 
+4. `utils.py` --> Code for parsing arguments / data loaders
+5. `main_conditional.py` --> Code for training and evaluating the conditional GAN in the unsupervised setting. 
+6. `main.py` --> Code for training and evaluating the GAN in the semi-supervised setting. 
+7. `main_supervised.py` --> Code for training and evaluating the GAN in the supervised setting. 
