@@ -11,3 +11,4 @@ Here is a description of each of the files:
 5. `main_conditional.py` --> Code for training and evaluating the conditional GAN in the unsupervised setting. 
 6. `main.py` --> Code for training and evaluating the GAN in the semi-supervised setting. 
 7. `main_supervised.py` --> Code for training and evaluating the GAN in the supervised setting. 
+
