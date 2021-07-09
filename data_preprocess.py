@@ -31,7 +31,6 @@ def obtainInitialData():
         day4_6_monocyte (pandas.DataFrame): Contains the portion of cell metadata corresponding to day 4/6 monocytes
         countsInVitroCscMatrix (np.ndarray): Matrix reporting the number of transcripts (UMIs) for each gene in each cell (rows are cells and columns are genes)
         clone_data (np.ndarray): Binary matrix indicating the clonal membership of each cell. 
-        gene_names (np.ndarray): List of gene names   
     '''
     countsInVitro = np.load('counts_matrix_in_vitro.npz', mmap_mode='r+')
     cloneAnnotation = np.load('clone_annotation_in_vitro.npz')
@@ -56,7 +55,7 @@ def obtainInitialData():
 
 def PCA_and_normalize(data_1, data_2, dat1_test, dat2_test, setting):
     '''
-    Performs PCA (to 10 dims) and L2 normalization on the data
+    Performs PCA (to 10 dimensions) and L2 normalization on the gene expression data
     Parameters:
         data_1 (np.ndarray): Day 2 geneexpression train data 
         data_2 (np.ndarray): Day 4-6 geneexpression train data
