@@ -12,3 +12,4 @@ Here is a description of each of the files:
 6. `main.py` --> Code for training and evaluating the GAN in the semi-supervised setting. 
 7. `main_supervised.py` --> Code for training and evaluating the GAN in the supervised setting. 
 
+To run, first save the necessary data loaders by running `data_preprocess.py` (being sure to download all the data and have it saved first). Then, start a new visdom server (by running `python -m visdom.server -port 3000` in terminal), then run either `main_conditional.py`, `main.py` or `main_supervised.py` (in a new terminal tab). 
