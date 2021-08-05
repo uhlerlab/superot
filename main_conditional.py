@@ -6,6 +6,7 @@ import cGAN
 import utils
 import visdom
 from scipy.sparse import csc_matrix
+from scipy.io import mmread
 from sklearn.linear_model import LogisticRegression
 
 import numpy as np
@@ -17,13 +18,16 @@ import pickle
 torch.manual_seed(1)
 
 # ============ EVALUATION =================
+CLONE_ANNOTATION = 'clone_annotation_in_vitro.npz'
+CELL_METADATA = 'cell_metadata_in_vitro.txt'
+
 use_cuda = torch.cuda.is_available()
 device = torch.device('cuda:0' if use_cuda else 'cpu')
 cellMetadataInVitroDay = np.loadtxt(
-    'cell_metadata_in_vitro.txt', skiprows=1, usecols=(0,))
-metadata = pd.read_csv('cell_metadata_in_vitro.txt', sep='\\t', header=0)
+    CELL_METADATA, skiprows=1, usecols=(0,))
+metadata = pd.read_csv(CELL_METADATA, sep='\\t', header=0)
 cellMetadataInVitroType = np.genfromtxt(
-    'cell_metadata_in_vitro.txt', dtype='str',  skip_header=1, usecols=(2,))
+    CELL_METADATA, dtype='str',  skip_header=1, usecols=(2,))
 inpDataset = np.load('dat1_test_unsupervised', allow_pickle=True)
 inpDataset = torch.from_numpy(inpDataset).float().to(device)
 clusters_test = torch.from_numpy(np.load('clusters_test', allow_pickle=True)).float().to(device)
@@ -32,9 +36,10 @@ targetIndices = np.load('day4_6_unsupervised', allow_pickle=True)
 day2ind = np.load('day2Ind_test', allow_pickle=True)
 day4_6ind = np.load('day4_6Ind_test', allow_pickle=True)
 print(day2ind.shape, day4_6ind.shape, targetDataset.shape, targetIndices.shape, clusters_test.shape)
-cloneAnnotation = np.load('clone_annotation_in_vitro.npz')
+clone_data = np.load(CLONE_ANNOTATION)
 clone_data = csc_matrix(
-    (cloneAnnotation['data'], cloneAnnotation['indices'], cloneAnnotation['indptr']), shape=(130887, 5864)).toarray()
+    (clone_data['data'], clone_data['indices'], clone_data['indptr']), shape=(130887, 5864)).toarray()
+
 
 y = []
 for i in range(len(targetDataset)):
@@ -135,7 +140,6 @@ D_opt = optim.Adam(list(netD.parameters()), lr=args.lrD)
 logsigmoid = nn.LogSigmoid()
 mse = nn.MSELoss(reduce=False)
 LOG2 = Variable(torch.from_numpy(np.ones(1)*np.log(2)).float())
-print(LOG2)
 if torch.cuda.is_available():
     LOG2 = LOG2.cuda()
 

@@ -5,7 +5,7 @@ import torch.nn as nn
 import tensorflow as tf
 import torchvision
 import torchvision.transforms as transforms
-import visdom
+# import visdom
 import random as rd
 import argparse
 import pickle
@@ -16,10 +16,15 @@ from scipy.io import loadmat
 from collections import Counter
 from PIL import Image
 from scipy.sparse import csr_matrix, csc_matrix
+from scipy.io import mmread
 from sklearn.decomposition import IncrementalPCA
 from sklearn.datasets import make_blobs
 from sklearn import preprocessing
 from sklearn.preprocessing import MinMaxScaler
+
+COUNTS_MATRIX = 'counts_matrix_in_vitro.npz'
+CLONE_ANNOTATION = 'clone_annotation_in_vitro.npz'
+CELL_METADATA = 'cell_metadata_in_vitro.txt'
 
 def obtainInitialData():
     '''
@@ -32,13 +37,13 @@ def obtainInitialData():
         countsInVitroCscMatrix (np.ndarray): Matrix reporting the number of transcripts (UMIs) for each gene in each cell (rows are cells and columns are genes)
         clone_data (np.ndarray): Binary matrix indicating the clonal membership of each cell. 
     '''
-    countsInVitro = np.load('counts_matrix_in_vitro.npz', mmap_mode='r+')
-    cloneAnnotation = np.load('clone_annotation_in_vitro.npz')
+    countsInVitroCscMatrix = np.load(COUNTS_MATRIX, mmap_mode='r+')
+    clone_data = np.load(CLONE_ANNOTATION)
     clone_data = csc_matrix(
-        (cloneAnnotation['data'], cloneAnnotation['indices'], cloneAnnotation['indptr']), shape=(130887, 5864)).toarray()
+        (clone_data['data'], clone_data['indices'], clone_data['indptr']), shape=(130887, 5864)).toarray()
     countsInVitroCscMatrix = csc_matrix(
-        (countsInVitro['data'], countsInVitro['indices'], countsInVitro['indptr']), shape=(130887, 25289)).toarray()
-    metadata = pd.read_csv('cell_metadata_in_vitro.txt', sep='\\t', header=0)
+        (countsInVitroCscMatrix['data'], countsInVitroCscMatrix['indices'], countsInVitroCscMatrix['indptr']), shape=(130887, 25289)).toarray()
+    metadata = pd.read_csv(CELL_METADATA, sep='\\t', header=0)
     day4_6 = metadata.loc[metadata['Time point'] > 3]
     day4_6_neutrophil = day4_6.loc[(day4_6['Annotation'] == 'Neutrophil')]
     day4_6_monocyte = day4_6.loc[(day4_6['Annotation'] == 'Monocyte')]
@@ -129,24 +134,19 @@ def setup_data_loaders_semisupervised(numPoints):
         day4_6_semi[numPoints] (np.ndarray): List of indices in cell metadata corresponding to the day 4/6 cells used in the dataset
     '''
     day2, day4_6, day4_6_neutrophil, day4_6_monocyte, countsInVitroCscMatrix, clone_data = obtainInitialData()
+    neutrophil_indices = day4_6_neutrophil.index.tolist()
+    monocyte_indices = day4_6_monocyte.index.tolist()
     data_1_train, data_2_train, day46_to_day2 = [], [], {}
     train = np.load('train', allow_pickle=True)
     day4_6indices = []
     for i in range(numPoints):
         clone_index = np.where(clone_data[day2[train[i]]] == 1)[0]
-        try:
-            neutrophils = day4_6_neutrophil.loc[np.where(
-                clone_data[:, clone_index] == 1)[0]]
-            n_count = neutrophils.count()[0]
-        except:
-            n_count = 0
-        try:
-            monocytes = day4_6_monocyte.loc[np.where(
-                clone_data[:, clone_index] == 1)[0]]
-            m_count = monocytes.count()[0]
-        except:
-            m_count = 0
-        cell_index = neutrophils if n_count > m_count else monocytes
+        indices = np.where(clone_data[:, clone_index] == 1)[0].tolist()
+        indices_n = list(set(indices) & set(neutrophil_indices))
+        indices_m = list(set(indices) & set(monocyte_indices))
+        n_count = len(indices_n)
+        m_count = len(indices_m)        
+        cell_index = day4_6_neutrophil.loc[indices_n] if n_count > m_count else day4_6_monocyte.loc[indices_m]
         for row in cell_index.iterrows():
             if row[0] not in day46_to_day2 and not np.isnan(row[1]['Time point']):
                 day46_to_day2[row[0]] = day2[train[i]]
@@ -188,25 +188,20 @@ def setup_data_loaders_supervised():
         day4_6_supervised (np.ndarray): List of indices in cell metadata corresponding to the day 4/6 cells used in the dataset
     '''
     day2, day4_6, day4_6_neutrophil, day4_6_monocyte, countsInVitroCscMatrix, clone_data = obtainInitialData()
+    neutrophil_indices = day4_6_neutrophil.index.tolist()
+    monocyte_indices = day4_6_monocyte.index.tolist()
     data_1_train, data_2_train, day46_to_day2 = [], [], {}
     train = np.load('train', allow_pickle=True)
     day4_6indices = []
     for i in range(len(train)):
         ind = day2[train[i]]
         clone_index = np.where(clone_data[ind] == 1)[0]
-        try:
-            neutrophils = day4_6_neutrophil.loc[np.where(
-                clone_data[:, clone_index] == 1)[0]]
-            n_count = neutrophils.count()[0]
-        except:
-            n_count = 0
-        try:
-            monocytes = day4_6_monocyte.loc[np.where(
-                clone_data[:, clone_index] == 1)[0]]
-            m_count = monocytes.count()[0]
-        except:
-            m_count = 0
-        cell_index = neutrophils if n_count > m_count else monocytes
+        indices = np.where(clone_data[:, clone_index] == 1)[0].tolist()
+        indices_n = list(set(indices) & set(neutrophil_indices))
+        indices_m = list(set(indices) & set(monocyte_indices))
+        n_count = len(indices_n)
+        m_count = len(indices_m)        
+        cell_index = day4_6_neutrophil.loc[indices_n] if n_count > m_count else day4_6_monocyte.loc[indices_m]
         for row in cell_index.iterrows():
             if row[0] not in day46_to_day2 and not np.isnan(row[1]['Time point']):
                 day46_to_day2[row[0]] = ind
@@ -236,26 +231,21 @@ def createNewTest():
         day4_6Ind_test (np.ndarray): List of indices in cell metadata corresponding to the day 4/6 cells used in the test dataset
         train (np.ndarray): List of indices in cell metadata corresponding to the day 2 cells used in the train dataset 
     '''
-    day2, day4_6, day4_6_neutrophil, day4_6_monocyte, countsInVitroCscMatrix, clone_data = obtainInitialData()
+    day2, day4_6, day4_6_neutrophil, day4_6_monocyte, countsInVitroCscMatrix, clone_data  = obtainInitialData()
+    neutrophil_indices = day4_6_neutrophil.index.tolist()
+    monocyte_indices = day4_6_monocyte.index.tolist()
     testIndices = rd.sample(range(len(day2)), 305)
     trainIndices = list(set(range(len(day2))) - set(testIndices))
     day2Ind, day46_ind, dat1_test, dat2_test, day46_to_day2 = [], [], [], [], {}
     clusters = []
     for i in range(len(testIndices)):
         clone_index = np.where(clone_data[day2[testIndices[i]]] == 1)[0]
-        try:
-            neutrophils = day4_6_neutrophil.loc[np.where(
-                clone_data[:, clone_index] == 1)[0]]
-            n_count = neutrophils.count()[0]
-        except:
-            n_count = 0
-        try:
-            monocytes = day4_6_monocyte.loc[np.where(
-                clone_data[:, clone_index] == 1)[0]]
-            m_count = monocytes.count()[0]
-        except:
-            m_count = 0
-        cell_index = neutrophils if n_count > m_count else monocytes
+        indices = np.where(clone_data[:, clone_index] == 1)[0].tolist()
+        indices_n = list(set(indices) & set(neutrophil_indices))
+        indices_m = list(set(indices) & set(monocyte_indices))
+        n_count = len(indices_n)
+        m_count = len(indices_m)        
+        cell_index = day4_6_neutrophil.loc[indices_n] if n_count > m_count else day4_6_monocyte.loc[indices_m]
         for row in cell_index.iterrows():
             if row[0] not in day46_to_day2 and not np.isnan(row[1]['Time point']):
                 day46_to_day2[row[0]] = day2[testIndices[i]]
